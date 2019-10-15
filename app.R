@@ -42,7 +42,8 @@ sidebar <- dashboardSidebar(
                     choices = sort(levels(ups$STATE)),
                     options = list(`actions-box` = TRUE),
                     multiple = T, 
-                    selected = c("ME", "NH", "MA")), 
+                    selected = c("ME", "NH", "MA")),
+      
         
         # select Type of UPS Location--------------------------
         
@@ -50,22 +51,32 @@ sidebar <- dashboardSidebar(
                     label = "Select Type of UPS Service Location", 
                     choices = sort(levels(ups$NAME)),
                     options = list(`actions-box` = TRUE),
-                    multiple = T)
+                    multiple = T, 
+                    selected = sort(levels(ups$NAME)))
         
+        # Download Button for Data -------------------------------
+        
+        # downloadButton("downloadData", "Download Selected Data")
+        
+
 )
 
 body <- dashboardBody(theme = shinytheme("flatly"),
               tabItems(
               # Data Table Page -----------------------------------
                   tabItem("table",
-                  box(title = "Data Table:", 
-                  DT::dataTableOutput(outputId = "datatable"))
-                                )
-                        )
-              )
+                    box(title = "Data Table:", 
+                    DT::dataTableOutput(outputId = "datatable"))
+                                ),
+              # Leaflet Map 
+                  tabItem("map",
+                    box(title = "Nora's Map",
+                    leafletOutput("mapPlot", width = "100%", height = "100%"))
+                      )
+              ))
 
 
-ui <-dashboardPage( header, sidebar, body)
+ui <- dashboardPage( header, sidebar, body)
 
 server <- function(input, output) {
   
@@ -75,6 +86,14 @@ server <- function(input, output) {
     data_subset <- ups[ups$STATE %in% input$stateSelect & (ups$NAME %in% input$typeSelect),]
     data_subset
     
+  })
+  ########################### MAP #######################################
+  
+  output$mapPlot <- renderLeaflet({
+    leaflet(state_serviceSubset()) %>% 
+      addTiles() %>%
+      addProviderTiles("Esri.WorldGrayCanvas", group = "WorldGrayCanvas")%>%
+      addCircleMarkers()
   })
   
   ########################### DATA TABLE ################################ 
