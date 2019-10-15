@@ -11,16 +11,19 @@ library(leaflet.extras)
 library(shinyjs)
 library(rgeos)
 library(shinyWidgets)
+library(tigris)
+library(RColorBrewer)
+library(plotly)
 
 ############ LOAD DATA ######################
 #Source: https://hifld-geoplatform.opendata.arcgis.com/search?groupIds=c779ef9b8468494fa2dbf7f573d61547
 
-ups_locations <- readOGR("https://opendata.arcgis.com/datasets/d5c185658ec74c009ad956a92c50c58d_0.geojson")
+# ups_locations <- readOGR("https://opendata.arcgis.com/datasets/d5c185658ec74c009ad956a92c50c58d_0.geojson")
 # dhl_locations <- readOGR("https://opendata.arcgis.com/datasets/01e20444878040278d4d99d0bbe95654_0.geojson")
 # fedex_locations <- readOGR("https://opendata.arcgis.com/datasets/13df698324c24807bc68ba7ac4f433cd_0.geojson")
 
 ups <- data.frame(ups_locations@data)
-ups <- subset(ups, STATE == c("NY"))  # Filter by Northeast
+# ups <- subset(ups, STATE == c("NY"))  # Filter by Northeast
 
 
 
@@ -74,7 +77,11 @@ body <- dashboardBody(theme = shinytheme("flatly"),
                   tabItem("map",
                           title = "Nora's Map",
                           leafletOutput("mapPlot")
-                      )
+                      ),
+              # PLot Page
+              tabItem("plot",
+                      box(title = "Plot 1",
+                          plotlyOutput("histo")), width = 10)
               ))
 
 
@@ -107,7 +114,22 @@ server <- function(input, output) {
     DT::datatable(data = state_serviceSubset())
   })
   
-
+############################ PLOTS ######################################
+  # Histogram
+  
+  # Source: http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html#Treemap
+  output$histo <- renderPlotly({
+    
+    g <- ggplot(state_serviceSubset(), aes(STATE)) + 
+      geom_bar(aes(fill=NAME), width = 0.5) + 
+      theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+      labs(title="UPS Locations", 
+           subtitle="Type of Shipping Location by State", x = "State") +
+      theme(legend.title = element_blank()) + scale_fill_brewer(palette = "Paired")
+    
+    ggplotly(g)
+    
+  })
 }
 
 shinyApp(ui, server)
