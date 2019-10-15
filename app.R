@@ -15,7 +15,7 @@ library(shinyWidgets)
 ############ LOAD DATA ######################
 #Source: https://hifld-geoplatform.opendata.arcgis.com/search?groupIds=c779ef9b8468494fa2dbf7f573d61547
 
-ups_locations <- readOGR("https://opendata.arcgis.com/datasets/d5c185658ec74c009ad956a92c50c58d_0.geojson")
+# ups_locations <- readOGR("https://opendata.arcgis.com/datasets/d5c185658ec74c009ad956a92c50c58d_0.geojson")
 # dhl_locations <- readOGR("https://opendata.arcgis.com/datasets/01e20444878040278d4d99d0bbe95654_0.geojson")
 # fedex_locations <- readOGR("https://opendata.arcgis.com/datasets/13df698324c24807bc68ba7ac4f433cd_0.geojson")
 
@@ -29,16 +29,29 @@ sidebar <- dashboardSidebar(
         sidebarMenu(id = "tabs", 
             # Menu Items ----------------------------------------------
             menuItem("Map", icon = icon("map"), tabName = "map"),
-            menuItem("Table", icon = icon("table"), tabName = "table")), 
+            menuItem("Table", icon = icon("table"), tabName = "table"),
+            menuItem("Plots", icon = icon("bar-chart"), tabName = "plot")
+            ), 
         
         ################### INPUTS ######################
+        
+        # Select State---------------------------------------
         
         pickerInput( inputId = "stateSelect",
                     label =  "Select State:",
                     choices = sort(levels(ups$STATE)),
                     options = list(`actions-box` = TRUE),
                     multiple = T, 
-                    selected = c("ME", "NH", "MA"))
+                    selected = c("ME", "NH", "MA")), 
+        
+        # select Type of UPS Location--------------------------
+        
+        pickerInput(inputId = "typeSelect", 
+                    label = "Select Type of UPS Service Location", 
+                    choices = sort(levels(ups$NAME)),
+                    options = list(`actions-box` = TRUE),
+                    multiple = T)
+        
 )
 
 body <- dashboardBody(theme = shinytheme("flatly"),
@@ -56,13 +69,21 @@ ui <-dashboardPage( header, sidebar, body)
 
 server <- function(input, output) {
   
+  # Filter Data by state and Type of Serivce
+  state_serviceSubset <- reactive({
+    req(input$stateSelect, input$typeSelect)
+    data_subset <- ups[ups$STATE %in% input$stateSelect & (ups$NAME %in% input$typeSelect),]
+    data_subset
+    
+  })
+  
   ########################### DATA TABLE ################################ 
   
   # Data table ----------------------------------------------
   output$datatable <- DT::renderDataTable({
     
     
-    DT::datatable(data = ups)
+    DT::datatable(data = state_serviceSubset())
   })
   
 
