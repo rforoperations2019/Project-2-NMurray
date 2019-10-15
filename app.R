@@ -20,7 +20,7 @@ ups_locations <- readOGR("https://opendata.arcgis.com/datasets/d5c185658ec74c009
 # fedex_locations <- readOGR("https://opendata.arcgis.com/datasets/13df698324c24807bc68ba7ac4f433cd_0.geojson")
 
 ups <- data.frame(ups_locations@data)
-# ups <- subset(ups, STATE == c("NY"))  # Filter by Northeast
+ups <- subset(ups, STATE == c("NY"))  # Filter by Northeast
 
 
 
@@ -95,7 +95,7 @@ server <- function(input, output) {
     leaflet(state_serviceSubset())%>%
       addTiles()%>%
       addProviderTiles("OpenStreetMap.BZH", group = "BZH")%>%
-      addMarkers()
+      addAwesomeMarkers(icon = awesomeIcons(icon ="envelope", library = "glyphicon"))
   })
   
   ########################### DATA TABLE ################################ 
