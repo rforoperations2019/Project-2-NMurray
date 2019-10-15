@@ -15,11 +15,13 @@ library(shinyWidgets)
 ############ LOAD DATA ######################
 #Source: https://hifld-geoplatform.opendata.arcgis.com/search?groupIds=c779ef9b8468494fa2dbf7f573d61547
 
-# ups_locations <- readOGR("https://opendata.arcgis.com/datasets/d5c185658ec74c009ad956a92c50c58d_0.geojson")
+ups_locations <- readOGR("https://opendata.arcgis.com/datasets/d5c185658ec74c009ad956a92c50c58d_0.geojson")
 # dhl_locations <- readOGR("https://opendata.arcgis.com/datasets/01e20444878040278d4d99d0bbe95654_0.geojson")
 # fedex_locations <- readOGR("https://opendata.arcgis.com/datasets/13df698324c24807bc68ba7ac4f433cd_0.geojson")
 
 ups <- data.frame(ups_locations@data)
+# ups <- subset(ups, STATE == c("NY"))  # Filter by Northeast
+
 
 
 header <- dashboardHeader(title = "UPS Shipping Locations", 
@@ -42,7 +44,7 @@ sidebar <- dashboardSidebar(
                     choices = sort(levels(ups$STATE)),
                     options = list(`actions-box` = TRUE),
                     multiple = T, 
-                    selected = c("ME", "NH", "MA")),
+                    selected = sort(levels(ups$STATE))),
       
         
         # select Type of UPS Location--------------------------
@@ -70,8 +72,8 @@ body <- dashboardBody(theme = shinytheme("flatly"),
                                 ),
               # Leaflet Map 
                   tabItem("map",
-                    box(title = "Nora's Map",
-                    leafletOutput("mapPlot", width = "100%", height = "100%"))
+                          title = "Nora's Map",
+                          leafletOutput("mapPlot")
                       )
               ))
 
@@ -90,10 +92,10 @@ server <- function(input, output) {
   ########################### MAP #######################################
   
   output$mapPlot <- renderLeaflet({
-    leaflet(state_serviceSubset()) %>% 
-      addTiles() %>%
-      addProviderTiles("Esri.WorldGrayCanvas", group = "WorldGrayCanvas")%>%
-      addCircleMarkers()
+    leaflet(state_serviceSubset())%>%
+      addTiles()%>%
+      addProviderTiles("OpenStreetMap.BZH", group = "BZH")%>%
+      addMarkers()
   })
   
   ########################### DATA TABLE ################################ 
