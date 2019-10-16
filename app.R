@@ -58,13 +58,19 @@ sidebar <- dashboardSidebar(
                     choices = ups_type,
                     options = list(`actions-box` = TRUE),
                     multiple = T, 
-                    selected =  c("UPS DROP BOX")))
+                    selected =  c("UPS DROP BOX")),
 
-        # NEED ANOTHER INPUt!!!!!!!!!!!!!!!!!!!!!!!
+        # NEED ANOTHER INPUt!!!!!!!!!!!!!!!!!!!!!!!    (How do I change this in the map?? If statement?)
+        # Select Input: Change Base Map 
+        radioButtons(inputId = "baseMap", 
+                     label = "Select Base Map", 
+                     choices = c("Thunderforest.TransportDark", "Stamen.Toner" ), 
+                     selected = c("Stamen.Toner")),
+
         
-        # Download Button for Data ------------------------------- #####NEED! 
-        
-        # downloadButton("downloadData", "Download Selected Data")
+        # Download Button for Data ------------------------------- 
+
+        downloadButton("downloadData","Download Selected Data"))
         
 
 body <- dashboardBody(theme = shinytheme("flatly"),
@@ -114,62 +120,35 @@ awesome_reactive_data <-  reactive({
   # Create Base Map
   
   output$mapPlot <- renderLeaflet({
-    # leaflet()%>%
-    #   addTiles()%>%
-    #   addProviderTiles("Stamen.Toner", group = "Toner")
-    # 
+    leaflet()%>%
+      addTiles()%>%
+      addProviderTiles("Stamen.Toner", group = "Toner")  # IF STATEMENT NEEDED TO CHANGE BASE MAP?? 
+      })
       
-  pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset()$NAME)))
-  
-  leaflet(state_serviceSubset())%>%
-    addTiles()%>%
-    addProviderTiles("Stamen.Toner", group = "Toner")%>%
-    addCircleMarkers(lat = state_serviceSubset()$LATITUDE, lng = state_serviceSubset()$LONGITUDE, group = state_serviceSubset()$NAME, stroke = F, color = ~pal(NAME))%>%
-    addLayersControl(
-      overlayGroups = c(levels(state_serviceSubset()$NAME)),
-      options = layersControlOptions(collapsed = FALSE))%>%
-    addLegend("bottomright", pal = pal, values = ~NAME,
-              title = "Type of UPS Location")
-  
+  #Add Circle Layers 
+  observe({
+    pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset()$NAME)))
+    
+    leafletProxy("mapPLot", data =state_serviceSubset())%>%
+      addCircleMarkers(lat = state_serviceSubset()$LATITUDE, lng = state_serviceSubset()$LONGITUDE, 
+                       group = state_serviceSubset()$NAME, stroke = F, color = ~pal(NAME))%>%
+      addLayersControl(
+        overlayGroups = c(levels(state_serviceSubset()$NAME)),
+        options = layersControlOptions(collapsed = FALSE))%>%
+        addLegend("bottomright", pal = pal, values = ~NAME,
+                  title = "Type of UPS Location")
   })
+# My beautiful working map without Leaflet proxy
+  # leaflet(state_serviceSubset())%>%
+  #   addTiles()%>%
+  #   addProviderTiles("Stamen.Toner", group = "Toner")%>%
+  #   addCircleMarkers(lat = state_serviceSubset()$LATITUDE, lng = state_serviceSubset()$LONGITUDE, group = state_serviceSubset()$NAME, stroke = F, color = ~pal(NAME))%>%
+  #   addLayersControl(
+  #     overlayGroups = c(levels(state_serviceSubset()$NAME)),
+  #     options = layersControlOptions(collapsed = FALSE))%>%
+  #   addLegend("bottomright", pal = pal, values = ~NAME,
+  #             title = "Type of UPS Location")
   
-  # Now Add Layers of Points for Location Type-------------------------------------------
-  
-
-  # observeEvent({
-  #   
-  #   #Make Palette
-  #   pal <- colorFactor(palette = "Paired", domain = ups_type)
-  #   
-  #   # Make Icons
-  #   icons <- awesomeIcons(icon = "envelope",iconColor = 'blue',library = 'glyphicon')
-  #   
-  #   leafletProxy("mapPlot", data = state_serviceSubset())%>%
-  #     clearGroup(group = state_serviceSubset()$NAME) %>%
-  #     addAwesomeMarkers(lng = LONGITUDE,
-  #                       lat = LATITUDE,
-  #                       icon = icons, group = state_serviceSubset()$NAME, ~pal(NAME))%>%
-  #     addLayersControl(
-  #       overlayGroups = c(levels(state_serviceSubset()$NAME)),
-  #       options = layersControlOptions(collapsed = FALSE))%>%
-  #     addLegend("bottomright", pal = pal, values = ~NAME,
-  #               title = "Type of UPS Location")
-    
-    # pal <- colorFactor(palette = "Paired", domain = c(levels(ups_type)))
-    # leafletProxy("mapPlot", data = state_serviceSubset())%>%
-    #   addCircleMarkers(lat = state_serviceSubset()$LATITUDE,
-    #                    lng = state_serviceSubset()$LONGITUDE,
-    #                    group = state_serviceSubset()$NAME,
-    #                    stroke = F, color = ~pal(NAME))%>%
-    #   addLayersControl(
-    #     overlayGroups = c(levels(state_serviceSubset()$NAME)),
-    #     options = layersControlOptions(collapsed = FALSE))%>%
-    #   addLegend("bottomright", pal = pal, values = ~NAME,
-    #             title = "Type of UPS Location")
-    
-  #   
-  # })
-  # 
 
   
   ########################### DATA TABLE ################################ 
@@ -197,6 +176,19 @@ awesome_reactive_data <-  reactive({
     ggplotly(g)
     
   })
+  
+  ############# Download Data #######################
+  
+  # #Output for download-----------------------------------------
+
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste("UPS location data", Sys.Date(), ".csv", sep="")
+    },
+    content = function(file) {
+      write.csv(state_serviceSubset(), file)
+    }
+  )
 }
 
 shinyApp(ui, server)
