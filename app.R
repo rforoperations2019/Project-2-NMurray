@@ -114,35 +114,62 @@ awesome_reactive_data <-  reactive({
   # Create Base Map
   
   output$mapPlot <- renderLeaflet({
-    leaflet()%>%
-      addTiles()%>%
-      addProviderTiles("OpenStreetMap.BZH", group = "BZH")})
+    # leaflet()%>%
+    #   addTiles()%>%
+    #   addProviderTiles("Stamen.Toner", group = "Toner")
+    # 
       
-
+  pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset()$NAME)))
+  
+  leaflet(state_serviceSubset())%>%
+    addTiles()%>%
+    addProviderTiles("Stamen.Toner", group = "Toner")%>%
+    addCircleMarkers(lat = state_serviceSubset()$LATITUDE, lng = state_serviceSubset()$LONGITUDE, group = state_serviceSubset()$NAME, stroke = F, color = ~pal(NAME))%>%
+    addLayersControl(
+      overlayGroups = c(levels(state_serviceSubset()$NAME)),
+      options = layersControlOptions(collapsed = FALSE))%>%
+    addLegend("bottomright", pal = pal, values = ~NAME,
+              title = "Type of UPS Location")
+  
+  })
   
   # Now Add Layers of Points for Location Type-------------------------------------------
   
 
-  observe({
+  # observeEvent({
+  #   
+  #   #Make Palette
+  #   pal <- colorFactor(palette = "Paired", domain = ups_type)
+  #   
+  #   # Make Icons
+  #   icons <- awesomeIcons(icon = "envelope",iconColor = 'blue',library = 'glyphicon')
+  #   
+  #   leafletProxy("mapPlot", data = state_serviceSubset())%>%
+  #     clearGroup(group = state_serviceSubset()$NAME) %>%
+  #     addAwesomeMarkers(lng = LONGITUDE,
+  #                       lat = LATITUDE,
+  #                       icon = icons, group = state_serviceSubset()$NAME, ~pal(NAME))%>%
+  #     addLayersControl(
+  #       overlayGroups = c(levels(state_serviceSubset()$NAME)),
+  #       options = layersControlOptions(collapsed = FALSE))%>%
+  #     addLegend("bottomright", pal = pal, values = ~NAME,
+  #               title = "Type of UPS Location")
     
-    #Make Palette
-    pal <- colorFactor(palette = "Paired", domain = ups_type)
+    # pal <- colorFactor(palette = "Paired", domain = c(levels(ups_type)))
+    # leafletProxy("mapPlot", data = state_serviceSubset())%>%
+    #   addCircleMarkers(lat = state_serviceSubset()$LATITUDE,
+    #                    lng = state_serviceSubset()$LONGITUDE,
+    #                    group = state_serviceSubset()$NAME,
+    #                    stroke = F, color = ~pal(NAME))%>%
+    #   addLayersControl(
+    #     overlayGroups = c(levels(state_serviceSubset()$NAME)),
+    #     options = layersControlOptions(collapsed = FALSE))%>%
+    #   addLegend("bottomright", pal = pal, values = ~NAME,
+    #             title = "Type of UPS Location")
     
-    # Make Icons
-    icons <- awesomeIcons(icon = "envelope",iconColor = 'blue',library = 'glyphicon')
-    
-    leafletProxy("mapPlot", data = state_serviceSubset())%>%
-      clearGroup(group = state_serviceSubset()$NAME) %>%
-      addAwesomeMarkers(lng = LONGITUDE,
-                        lat = LATITUDE,
-                        icon = icons, group = state_serviceSubset()$NAME, ~pal(NAME))%>%
-      addLayersControl(
-        overlayGroups = c(levels(state_serviceSubset()$NAME)),
-        options = layersControlOptions(collapsed = FALSE))%>%
-      addLegend("bottomright", pal = pal, values = ~NAME,
-                title = "Type of UPS Location")
-  })
-  
+  #   
+  # })
+  # 
 
   
   ########################### DATA TABLE ################################ 
