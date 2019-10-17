@@ -17,10 +17,11 @@ library(shinyWidgets)
 library(tigris)
 library(plotly)
 library(fontawesome)
+library(GISTools)
 
 ups_locations <- readOGR("https://opendata.arcgis.com/datasets/d5c185658ec74c009ad956a92c50c58d_0.geojson")
 ups <- data.frame(ups_locations@data)
-ups <- subset(ups, STATE == "NY")
+# ups <- subset(ups_locations, STATE == "NY")
 
 
 pal <- colorFactor(palette = "Blues", domain = c(levels(ups$NAME)))
@@ -66,23 +67,7 @@ leafletProxy("mapPlot", data = state_serviceSubset())%>%
 
 
 
-state_new <- readOGR("https://eric.clst.org/assets/wiki/uploads/Stuff/gz_2010_us_040_00_500k.json")
 
-# states <- states(cb = FALSE, resolution = "500k", year = 2019)
-
-# strip census code in api call in order to merge state data to API data
-ups$FIPS <- substr(ups$CENSUS_CODE, 1, 2)
-
-# Rename Shapefile column to join on ( both are nameed state)
-colnames(state_new@data)[colnames(state_new@data)=="STATE"] <- "FIPS"
-
-state_new@data<- merge(state_new@data, ups, by = c("FIPS"), sort = FALSE)
-
-pal <- colorFactor(palette = "Paired", domain = c(levels(ups$NAME)))
-leaflet(state_new)%>%
-  addTiles()%>%
-  addProviderTiles("Stamen.Toner", group = "Toner")%>%
-  addPolygons()
   
   # addCircleMarkers(lat = ups$LATITUDE, lng = ups$LONGITUDE, group = ups$NAME, stroke = F, color = ~pal(NAME))%>%
   # addLayersControl(
@@ -97,7 +82,7 @@ leaflet(state_new)%>%
 leaflet(ups)%>%
   addTiles()%>%
   addProviderTiles(providers$Stamen.Toner)%>%
-  addHeatmap(lng = ups$LONGITUDE, lat = ups$LATITUDE, intensity = ups$FIPS)
+  addHeatmap(lng = ups$LONGITUDE, lat = ups$LATITUDE, intensity = ups$FIPS) #Not a real value, but MVP
 
 
 
@@ -127,3 +112,46 @@ g + geom_bar(aes(fill=ups$NAME), width = 0.5) +
    labs(title="Total Type of Shipping Location", 
         subtitle="Sample Size varies based on selections", x = "Type of Location") +
    coord_flip() + scale_colour_brewer(palette = "Paired")
+ 
+ 
+ #################################################
+ 
+ #Source https://cran.r-project.org/web/packages/GISTools/GISTools.pdf
+ 
+ state_new <- readOGR("https://eric.clst.org/assets/wiki/uploads/Stuff/gz_2010_us_040_00_500k.json")
+
+ # strip census code in api call in order to merge state data to API data
+ ups$FIPS <- substr(ups$CENSUS_CODE, 1, 2)
+ 
+ # Rename Shapefile column to join on ( both are nameed state)
+ colnames(state_new@data)[colnames(state_new@data)=="STATE"] <- "FIPS"
+ colnames(state_new@data)[colnames(state_new@data)== "NAME"] <- "STATE_NAME"
+ 
+state_new@data <- merge(state_new@data, ups, by = c("FIPS"), sort = FALSE)
+ 
+ # Create counts within each polygon
+ 
+counts <- poly.counts(pts = ups_locations, polys =  state_new)
+ 
+library(rgdal)
+ pal <- colorFactor(palette = "Paired", domain = c(levels(ups$NAME)))
+ pal_count <-colorNumeric(palette = "Blues", domain =counts)
+ 
+ leaflet(state_new)%>%
+   addTiles()%>%
+   addProviderTiles("Stamen.Toner", group = "Toner")%>%
+   addPolygons(color = ~pal_count(counts),
+               weight = 2,
+               opacity = 1,
+               fillOpacity = 1, 
+               group = "UPS locations",
+               highlightOptions = highlightOptions(color = "black", bringToFront = TRUE))
+ 
+ 
+data(newhaven)
+ # How many breaches of peace in each census block?
+ n.breach = poly.counts(breach,blocks)
+ # Compute densities and map them
+ choropleth(blocks,n.breach/poly.areas(blocks))
+ 
+ choropleth(state_new, counts/poly.areas(state_new))
