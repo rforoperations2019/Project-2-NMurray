@@ -54,23 +54,29 @@ sidebar <- dashboardSidebar(
         # select Type of UPS Location--------------------------
         
         pickerInput(inputId = "typeSelect", 
-                    label = "Select Type of UPS Service Location", 
+                    label = "Select Type of UPS Service Location:", 
                     choices = ups_type,
                     options = list(`actions-box` = TRUE),
                     multiple = T, 
-                    selected =  c("UPS DROP BOX")))
+                    selected =  c("UPS DROP BOX")),
 
-        # NEED ANOTHER INPUt!!!!!!!!!!!!!!!!!!!!!!!
+        # NEED ANOTHER INPUt!!!!!!!!!!!!!!!!!!!!!!!    (How do I change this in the map?? If statement?)
+        # Select Input: Change Base Map 
+        radioButtons(inputId = "baseMap", 
+                     label = "Select Base Map:", 
+                     choices = c("Thunderforest.TransportDark", "Stamen.Toner" ), 
+                     selected = c("Stamen.Toner")),
+
         
-        # Download Button for Data ------------------------------- #####NEED! 
-        
-        # downloadButton("downloadData", "Download Selected Data")
+        # Download Button for Data ------------------------------- 
+
+        downloadButton("downloadData","Download Selected Data"))
         
 
 body <- dashboardBody(theme = shinytheme("flatly"),
               tabItems(
               # Data Table Page -----------------------------------
-                  tabItem("table",
+                  tabItem("table", width =12, height = 500,
                     box(title = "Data Table:", 
                     DT::dataTableOutput(outputId = "datatable"), width = 12)
                                 ),
@@ -81,8 +87,13 @@ body <- dashboardBody(theme = shinytheme("flatly"),
                       ),
               # PLot Page
               tabItem("plot",
-                      box(title = "Histogram: Plot 1",
-                          plotlyOutput("histo")), width = 12)
+                      fluidPage(12,
+                        box(title = "Histogram: Plot 1",
+                          plotlyOutput("histo"))),
+                      fluidPage(12,
+                        box(title = "Dot Plot: Plot 2",
+                        plotlyOutput("dotplot"))))
+              
               ))
 
 
@@ -114,62 +125,35 @@ awesome_reactive_data <-  reactive({
   # Create Base Map
   
   output$mapPlot <- renderLeaflet({
-    # leaflet()%>%
-    #   addTiles()%>%
-    #   addProviderTiles("Stamen.Toner", group = "Toner")
-    # 
+    leaflet()%>%
+      addTiles()%>%
+      addProviderTiles("Stamen.Toner", group = "Toner")  # IF STATEMENT NEEDED TO CHANGE BASE MAP?? 
+      })
       
-  pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset()$NAME)))
-  
-  leaflet(state_serviceSubset())%>%
-    addTiles()%>%
-    addProviderTiles("Stamen.Toner", group = "Toner")%>%
-    addCircleMarkers(lat = state_serviceSubset()$LATITUDE, lng = state_serviceSubset()$LONGITUDE, group = state_serviceSubset()$NAME, stroke = F, color = ~pal(NAME))%>%
-    addLayersControl(
-      overlayGroups = c(levels(state_serviceSubset()$NAME)),
-      options = layersControlOptions(collapsed = FALSE))%>%
-    addLegend("bottomright", pal = pal, values = ~NAME,
-              title = "Type of UPS Location")
-  
+  #Add Circle Layers 
+  observe({
+    pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset()$NAME)))
+    
+    leafletProxy("mapPLot", data = state_serviceSubset())%>%
+      addCircleMarkers(lat = state_serviceSubset()$LATITUDE, lng = state_serviceSubset()$LONGITUDE, 
+                       group = state_serviceSubset()$NAME, stroke = F, color = ~pal(NAME))%>%
+      addLayersControl(
+        overlayGroups = c(levels(state_serviceSubset()$NAME)),
+        options = layersControlOptions(collapsed = FALSE))%>%
+        addLegend("bottomright", pal = pal, values = ~NAME,
+                  title = "Type of UPS Location")
   })
+# My beautiful working map without Leaflet proxy
+  # leaflet(state_serviceSubset())%>%
+  #   addTiles()%>%
+  #   addProviderTiles("Stamen.Toner", group = "Toner")%>%
+  #   addCircleMarkers(lat = state_serviceSubset()$LATITUDE, lng = state_serviceSubset()$LONGITUDE, group = state_serviceSubset()$NAME, stroke = F, color = ~pal(NAME))%>%
+  #   addLayersControl(
+  #     overlayGroups = c(levels(state_serviceSubset()$NAME)),
+  #     options = layersControlOptions(collapsed = FALSE))%>%
+  #   addLegend("bottomright", pal = pal, values = ~NAME,
+  #             title = "Type of UPS Location")
   
-  # Now Add Layers of Points for Location Type-------------------------------------------
-  
-
-  # observeEvent({
-  #   
-  #   #Make Palette
-  #   pal <- colorFactor(palette = "Paired", domain = ups_type)
-  #   
-  #   # Make Icons
-  #   icons <- awesomeIcons(icon = "envelope",iconColor = 'blue',library = 'glyphicon')
-  #   
-  #   leafletProxy("mapPlot", data = state_serviceSubset())%>%
-  #     clearGroup(group = state_serviceSubset()$NAME) %>%
-  #     addAwesomeMarkers(lng = LONGITUDE,
-  #                       lat = LATITUDE,
-  #                       icon = icons, group = state_serviceSubset()$NAME, ~pal(NAME))%>%
-  #     addLayersControl(
-  #       overlayGroups = c(levels(state_serviceSubset()$NAME)),
-  #       options = layersControlOptions(collapsed = FALSE))%>%
-  #     addLegend("bottomright", pal = pal, values = ~NAME,
-  #               title = "Type of UPS Location")
-    
-    # pal <- colorFactor(palette = "Paired", domain = c(levels(ups_type)))
-    # leafletProxy("mapPlot", data = state_serviceSubset())%>%
-    #   addCircleMarkers(lat = state_serviceSubset()$LATITUDE,
-    #                    lng = state_serviceSubset()$LONGITUDE,
-    #                    group = state_serviceSubset()$NAME,
-    #                    stroke = F, color = ~pal(NAME))%>%
-    #   addLayersControl(
-    #     overlayGroups = c(levels(state_serviceSubset()$NAME)),
-    #     options = layersControlOptions(collapsed = FALSE))%>%
-    #   addLegend("bottomright", pal = pal, values = ~NAME,
-    #             title = "Type of UPS Location")
-    
-  #   
-  # })
-  # 
 
   
   ########################### DATA TABLE ################################ 
@@ -197,6 +181,29 @@ awesome_reactive_data <-  reactive({
     ggplotly(g)
     
   })
+  # Dotplot 
+  output$dotplot <- renderPlotly({
+    g <-ggplot(data=state_serviceSubset(), aes(x=NAME)) + geom_point(aes(), stat="count") + 
+      theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+      labs(title="Total Type of Shipping Location", 
+           subtitle="Sample Size varies based on selections", x = "Type of Location") +
+      coord_flip() + scale_fill_brewer(palette = "Paired")
+    
+    ggplotly(g)
+  })
+  
+  ############# Download Data #######################
+  
+  # #Output for download-----------------------------------------
+
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste("UPS location data", Sys.Date(), ".csv", sep="")
+    },
+    content = function(file) {
+      write.csv(state_serviceSubset(), file)
+    }
+  )
 }
 
 shinyApp(ui, server)
