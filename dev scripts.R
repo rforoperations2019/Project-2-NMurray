@@ -39,7 +39,7 @@ leaflet(ups)%>%
 pal <- colorFactor(palette = "Paired", domain = c(levels(ups$NAME)))
 leaflet(ups)%>%
   addTiles()%>%
-  addProviderTiles("Stamen.Toner", group = "Toner")%>%
+  addProviderTiles(providers$Stamen.Toner)%>%
   addCircleMarkers(lat = ups$LATITUDE, lng = ups$LONGITUDE, group = ups$NAME, stroke = F, color = ~pal(NAME))%>%
   addLayersControl(
     overlayGroups = c(levels(ups$NAME)),
@@ -68,9 +68,40 @@ leafletProxy("mapPlot", data = state_serviceSubset())%>%
 
 state_new <- readOGR("https://eric.clst.org/assets/wiki/uploads/Stuff/gz_2010_us_040_00_500k.json")
 
-states <- states(cb = FALSE, resolution = "500k", year = 2019)
+# states <- states(cb = FALSE, resolution = "500k", year = 2019)
 
-states@data<- merge(states@data, ups, by.x = c("STUSPS"), by.y= c("STATE"), sort = FALSE)
+# strip census code in api call in order to merge state data to API data
+ups$FIPS <- substr(ups$CENSUS_CODE, 1, 2)
+
+# Rename Shapefile column to join on ( both are nameed state)
+colnames(state_new@data)[colnames(state_new@data)=="STATE"] <- "FIPS"
+
+state_new@data<- merge(state_new@data, ups, by = c("FIPS"), sort = FALSE)
+
+pal <- colorFactor(palette = "Paired", domain = c(levels(ups$NAME)))
+leaflet(state_new)%>%
+  addTiles()%>%
+  addProviderTiles("Stamen.Toner", group = "Toner")%>%
+  addPolygons()
+  
+  # addCircleMarkers(lat = ups$LATITUDE, lng = ups$LONGITUDE, group = ups$NAME, stroke = F, color = ~pal(NAME))%>%
+  # addLayersControl(
+  #   overlayGroups = c(levels(ups$NAME)),
+  #   options = layersControlOptions(collapsed = FALSE))%>%
+  # addLegend("bottomright", pal = pal, values = ~NAME,
+  #           title = "Type of UPS Location")
+
+#########################################################
+#heat map
+
+leaflet(ups)%>%
+  addTiles()%>%
+  addProviderTiles(providers$Stamen.Toner)%>%
+  addHeatmap(lng = ups$LONGITUDE, lat = ups$LATITUDE, intensity = ups$FIPS)
+
+
+
+###################
 
 
 leaflet(ups)%>%
@@ -89,5 +120,10 @@ g + geom_bar(aes(fill=ups$NAME), width = 0.5) +
   theme(legend.title = element_blank()) + scale_fill_brewer(palette = "Paired")
 
 
-test <- readOGR("https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/UPS_Facilities/FeatureServer/0/query?where=1%3D1&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=NAME%2C%27input$typeSelect%27+STATE%2C%27input$stateSelect%27+BUSINESS_NAME%2C+CITY%2C+CENSUS_CODE%2C+PHONE&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=standard&f=pgeojson&token=") 
+# Dot Plot 
 
+ ggplot(data=ups, aes(x=NAME)) + geom_point(aes(), stat="count") + 
+   theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+   labs(title="Total Type of Shipping Location", 
+        subtitle="Sample Size varies based on selections", x = "Type of Location") +
+   coord_flip() + scale_colour_brewer(palette = "Paired")
