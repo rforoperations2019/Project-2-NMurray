@@ -129,17 +129,21 @@ awesome_reactive_data <-  reactive({
   # Filter State Shape File By State-------------------------------
   state_shape <- reactive({
     req(input$stateSelect)
-    data_subset <- subset(state_new, state_new$STATE %in% input$stateSelect)
+    data_subset <- filter(state_new, STATE %in% input$stateSelect)
+    return(data_subset)
   })
   
   # strip census_code in api call in order to merge state data on fips code to API data-------------
   state_serviceSubset_new <- reactive({
-    state_serviceSubset$FIPS <- substr(state_serviceSubset()$CENSUS_CODE, 1, 2)
+    
+    new_df <- cbind(state_serviceSubset(), FIPS = substr(ups$CENSUS_CODE, 1, 2))
+    return(new_df)
   })
   
   state_data_new <- reactive({
     #Merge shapefile with my dataset
-    state_merge <- merge(state_shape(), state_serviceSubset_new(), by = c("FIPS"), sort = FALSE)
+    state_merge <- merge(state_new, state_serviceSubset_new(), by = c("FIPS"), sort = FALSE)
+    return(state_merge)
   })
   
   # Count points in a state
@@ -164,28 +168,40 @@ awesome_reactive_data <-  reactive({
 
     if(input$mapType == "circles"){
 
-    pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset()$NAME)))
+    pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset_new()$NAME)))
+    
+    # counts <- poly.counts(pts = state_serviceSubset_new(), polys =  state_new)
+    # 
+    # # # Create palette
+    # pal_count <-colorNumeric(palette = "Blues", domain =counts())
 
-    leafletProxy("mapPlot", data = state_serviceSubset()) %>%
+    
+    # pal_count <-colorNumeric(palette = "Blues", domain = counts_by_state())
+
+    leafletProxy("mapPlot", data = state_serviceSubset_new()) %>%
       clearShapes() %>%
       clearMarkers() %>%
       # removeMarker("markers") %>%
       clearControls() %>%
-      addCircleMarkers(lat = state_serviceSubset()$LATITUDE, 
-                       lng = state_serviceSubset()$LONGITUDE, 
+      addCircleMarkers(
+                       lat = state_serviceSubset_new()$LATITUDE, 
+                       lng = state_serviceSubset_new()$LONGITUDE, 
                        stroke = F, 
                        color = ~pal(NAME), 
                        group = "markers")%>%
         addLegend("bottomright", pal = pal, values = ~NAME,
                   title = "Type of UPS Location", layerId = "legend")%>%
-      fitBounds(~min(state_serviceSubset()$LONGITUDE), ~min(state_serviceSubset()$LATITUDE),
-                ~max(state_serviceSubset()$LONGITUDE), ~max(state_serviceSubset()$LATITUDE))
+      fitBounds(~min(state_serviceSubset_new()$LONGITUDE), ~min(state_serviceSubset_new()$LATITUDE),
+                ~max(state_serviceSubset_new()$LONGITUDE), ~max(state_serviceSubset_new()$LATITUDE))
     }
-    else(leafletProxy("mapPlot")%>%
-           # removeMarker("markers") %>%
+    else(leafletProxy("mapPlot", data = state_data_new()) %>%
+           
+         #   # removeMarker("markers") %>%
            clearMarkers() %>%
            clearShapes() %>%
-           clearControls())
+           clearControls() %>%
+           addPolygons()
+    )
     }) 
   # # Add Polygons-------------------------------------------------------------
   #   observe({
