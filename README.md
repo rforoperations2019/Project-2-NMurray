@@ -25,3 +25,4 @@ Applications should be deployed and working on shinyapps.io.
 
 
 Shipping Data: https://hifld-geoplatform.opendata.arcgis.com/search?groupIds=c779ef9b8468494fa2dbf7f573d61547
+App link: https://noram.shinyapps.io/proj2/
