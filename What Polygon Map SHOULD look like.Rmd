@@ -1,0 +1,68 @@
+---
+title: "Polygon Map"
+author: "Nora Murray"
+date: "October 18, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(leaflet)
+library(leaflet.extras)
+library(httr) # http rest requests
+library(jsonlite) # fromJSON
+library(utils) # URLencode functions
+library(rgdal) # readOGR
+
+
+ 
+```
+
+:
+
+```{r}
+#API call to UPS location data
+
+ups_locations <- readOGR("https://opendata.arcgis.com/datasets/d5c185658ec74c009ad956a92c50c58d_0.geojson")
+ups <- data.frame(ups_locations@data)
+
+#Source https://cran.r-project.org/web/packages/GISTools/GISTools.pdf
+ 
+ state_new <- readOGR("https://eric.clst.org/assets/wiki/uploads/Stuff/gz_2010_us_040_00_500k.json")
+
+ # strip census_code in api call in order to merge state data on fips code to API data
+ ups <- cbind(ups, FIPS = substr(ups$CENSUS_CODE, 1, 2))
+
+ 
+ # Rename Shapefile column to join on ( both are nameed state)
+ # colnames(state_new@data)[colnames(state_new@data)=="STATE"] <- "FIPS"
+ colnames(state_new@data)[colnames(state_new@data)== "NAME"] <- "STATE_NAME"
+ 
+ # Load state file w/ state names and abbres 
+state_abbrev <- read.csv("states.csv")
+
+# Add State Abbrevs to spatial file (File contains Letter abbreviations STATE)
+state_new <- merge(state_new, state_abbrev, by = c("STATE_NAME", "STATE"))
+ 
+  #Merge shapefile with my dataset
+ state_new <- merge(state_new, ups, by = c("STATE"), sort = FALSE)
+ 
+ # # Create counts within each polygon
+ # 
+ counts <- poly.counts(pts = ups_locations, polys =  state_new)
+ 
+library(rgdal)
+ pal <- colorFactor(palette = "Paired", domain = c(levels(ups$NAME)))
+ pal_count <-colorNumeric(palette = "Blues", domain = counts)
+ 
+ leaflet(state_new)%>%
+   addTiles()%>%
+   addProviderTiles("Stamen.Toner", group = "Toner")%>%
+   addPolygons(color = ~pal_count(counts),
+               weight = 2,
+               opacity = 1,
+               fillOpacity = 1, 
+               group = "UPS locations",
+               highlightOptions = highlightOptions(color = "black", bringToFront = TRUE))
+```
+
