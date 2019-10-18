@@ -129,7 +129,7 @@ awesome_reactive_data <-  reactive({
   # Filter State Shape File By State-------------------------------
   state_shape <- reactive({
     req(input$stateSelect)
-    data_subset <- subset(state_new(), state_new()$STATE %in% input$stateSelect)
+    data_subset <- subset(state_new, state_new$STATE %in% input$stateSelect)
   })
   
   # strip census_code in api call in order to merge state data on fips code to API data-------------
@@ -139,7 +139,7 @@ awesome_reactive_data <-  reactive({
   
   state_data_new <- reactive({
     #Merge shapefile with my dataset
-    state_merge <- merge(state_new, state_serviceSubset_new(), by = c("FIPS"), sort = FALSE)
+    state_merge <- merge(state_shape(), state_serviceSubset_new(), by = c("FIPS"), sort = FALSE)
   })
   
   # Count points in a state
@@ -154,11 +154,9 @@ awesome_reactive_data <-  reactive({
   # # Create Base Map
   # 
   output$mapPlot <- renderLeaflet({
-    leaflet(state_serviceSubset())%>%
+    leaflet(data = state_serviceSubset())%>%
       addTiles()%>%
-      addProviderTiles("Stamen.Toner", group = "Toner")%>%
-      fitBounds(~min(state_serviceSubset()$LONGITUDE), ~min(state_serviceSubset()$LATITUDE),
-                ~max(state_serviceSubset()$LONGITUDE), ~max(state_serviceSubset()$LATITUDE))
+      addProviderTiles("Stamen.Toner", group = "Toner")
       })
       # 
   #Add Circle Layers ----------------------------------------------------------
@@ -168,33 +166,47 @@ awesome_reactive_data <-  reactive({
 
     pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset()$NAME)))
 
-    leafletProxy("mapPlot", data = state_serviceSubset())%>%
-      clearShapes()%>%
-      removeControl("legend") %>%
+    leafletProxy("mapPlot", data = state_serviceSubset()) %>%
+      clearShapes() %>%
+      clearMarkers() %>%
+      # removeMarker("markers") %>%
+      clearControls() %>%
       addCircleMarkers(lat = state_serviceSubset()$LATITUDE, 
                        lng = state_serviceSubset()$LONGITUDE, 
                        stroke = F, 
-                       color = ~pal(NAME))%>%
+                       color = ~pal(NAME), 
+                       group = "markers")%>%
         addLegend("bottomright", pal = pal, values = ~NAME,
-                  title = "Type of UPS Location", group = "legend")
-    }}) 
-  # Add Polygons-------------------------------------------------------------
-    observe({
-      if(input$mapType == "polygons"){
-    # Create palette
-    pal_count <-colorNumeric(palette = "Blues", domain =counts())
-      
-    leafletProxy("mapPlot", data = state_data_new()) %>%
-        clearShapes()%>%
-        removeControl("legend") %>%
-          addPolygons(color = ~pal_count(counts_by_state()),
-                      weight = 2,
-                      opacity = 1,
-                      fillOpacity = 1,
-                      group = "UPS locations",
-                      highlightOptions = highlightOptions(color = "black", bringToFront = TRUE))
-      }
-  })
+                  title = "Type of UPS Location", layerId = "legend")%>%
+      fitBounds(~min(state_serviceSubset()$LONGITUDE), ~min(state_serviceSubset()$LATITUDE),
+                ~max(state_serviceSubset()$LONGITUDE), ~max(state_serviceSubset()$LATITUDE))
+    }
+    else(leafletProxy("mapPlot")%>%
+           # removeMarker("markers") %>%
+           clearMarkers() %>%
+           clearShapes() %>%
+           clearControls())
+    }) 
+  # # Add Polygons-------------------------------------------------------------
+  #   observe({
+  #     if(input$mapType == "polygons"){
+  #   # Create palette
+  #   # pal_count <-colorNumeric(palette = "Blues", domain =counts())
+  #     
+  #   leafletProxy("mapPlot") %>%
+  #       clearShapes()%>%
+  #       removeControl()
+  #       #   addPolygons(color = ~pal_count(counts_by_state()),
+  #       #               weight = 2,
+  #       #               opacity = 1,
+  #       #               fillOpacity = 1,
+  #       #               group = "UPS locations",
+  #       #               highlightOptions = highlightOptions(color = "black", bringToFront = TRUE))
+  #     }
+  #     else(leafletProxy("mapPlot")%>%
+  #                 clearShapes()%>%
+  #                 removeControl("legend"))
+  #     })
 
   # # Add Polygons -----------------------------------------------------------------
   #
