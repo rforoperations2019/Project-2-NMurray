@@ -14,16 +14,23 @@ library(shinyWidgets)
 library(tigris)
 library(RColorBrewer)
 library(plotly)
+library(GISTools)
 
 ############ LOAD DATA ######################
 #Source: https://hifld-geoplatform.opendata.arcgis.com/search?groupIds=c779ef9b8468494fa2dbf7f573d61547
 
-# ups_locations <- readOGR("https://opendata.arcgis.com/datasets/d5c185658ec74c009ad956a92c50c58d_0.geojson")
-# # dhl_locations <- readOGR("https://opendata.arcgis.com/datasets/01e20444878040278d4d99d0bbe95654_0.geojson")
-# # fedex_locations <- readOGR("https://opendata.arcgis.com/datasets/13df698324c24807bc68ba7ac4f433cd_0.geojson")
-# 
-# ups <- data.frame(ups_locations@data)
-# ups <- subset(ups, STATE == c("NY"))  # Filter by Northeast
+# Stare shape file
+state_new <- readOGR("https://eric.clst.org/assets/wiki/uploads/Stuff/gz_2010_us_040_00_500k.json")
+
+# Load state file w/ state names and abbres 
+state_abbrev <- read.csv("states.csv")
+
+# Rename Shapefile column to join on ( both are nameed state)
+colnames(state_new@data)[colnames(state_new@data)=="STATE"] <- "FIPS"
+colnames(state_new@data)[colnames(state_new@data)== "NAME"] <- "STATE_NAME"
+
+# Add State Abbrevs to spatial file 
+state_new <- merge(state_new, state_abbrev, by = "STATE_NAME" )
 
 state_list <- sort(jsonlite::fromJSON("https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/UPS_Facilities/FeatureServer/0/query?where=1%3D1&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=STATE&returnGeometry=false&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=true&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson&token=")$features$attributes$STATE)
 
@@ -60,13 +67,12 @@ sidebar <- dashboardSidebar(
                     multiple = T, 
                     selected =  c("UPS DROP BOX")),
 
-        # NEED ANOTHER INPUt!!!!!!!!!!!!!!!!!!!!!!!    (How do I change this in the map?? If statement?)
-        # Select Input: Change Base Map 
-        radioButtons(inputId = "baseMap", 
-                     label = "Select Base Map:", 
-                     choices = c("Thunderforest.TransportDark", "Stamen.Toner" ), 
-                     selected = c("Stamen.Toner")),
-
+ 
+        # Select Input: Change Map from Circles to polygon
+        radioButtons(inputId = "mapType",
+                     label = "Select Map Input:",
+                     choices = c("circles", "polygon" ),
+                     selected = c("circles")),
         
         # Download Button for Data ------------------------------- 
 
@@ -102,17 +108,17 @@ ui <- dashboardPage( header, sidebar, body)
 server <- function(input, output) {
   
   
-  ############ Get Data API CALL BY STATE and NAME (inputs in link) #####################################
+  ############ Get Data API CALL BY STATE (inputs in link) #####################################
   
 awesome_reactive_data <-  reactive({ 
+  states <- paste(input$stateSelect, collapse ="%27,%20%27")
   
-  df<- readOGR("https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/UPS_Facilities/FeatureServer/0/query?where=1%3D1&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=NAME%2C+STATE%2C%27input$stateSelect%27%2C+BUSINESS_NAME%2C+CITY%2C+CENSUS_CODE%2C+PHONE%2C+LATITUDE%2C+LONGITUDE&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=standard&f=pgeojson&token=") 
- 
-  df <- data.frame(df@data)
+  df <- readOGR(paste0("https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/UPS_Facilities/FeatureServer/0/query?where=STATE%20IN%20(%27", states, "%27)&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=NAME%2C+STATE%2C%2C+BUSINESS_NAME%2C+CITY%2C+CENSUS_CODE%2C+PHONE%2C+LATITUDE%2C+LONGITUDE&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=standard&f=pgeojson&token="))
+  df <- data.frame(df)
   df
 })
-  
-  # Filter Data by state and Type of Serivce
+
+  # Filter Data by state and Type of Serivce-----------------------
   state_serviceSubset <- reactive({
     req(input$stateSelect, input$typeSelect)
     data_subset <- awesome_reactive_data()[awesome_reactive_data()$STATE %in% input$stateSelect &
@@ -120,41 +126,103 @@ awesome_reactive_data <-  reactive({
     data_subset
 
   })
+  
+  # Filter State Shape File By State-------------------------------
+  state_shape <- reactive({
+    req(input$stateSelect)
+    data_subset <- subset(state_new(), state_new()$STATE %in% input$stateSelect)
+  })
+  
+  # strip census_code in api call in order to merge state data on fips code to API data-------------
+  state_serviceSubset_new <- reactive({
+    state_serviceSubset$FIPS <- substr(state_serviceSubset()$CENSUS_CODE, 1, 2)
+  })
+  
+  state_data_new <- reactive({
+    #Merge shapefile with my dataset
+    state_merge <- merge(state_new, state_serviceSubset_new(), by = c("FIPS"), sort = FALSE)
+  })
+  
+  # Count points in a state
+  by_state <- reactive({
+    state_serviceSubset_new() %>% 
+      group_by(STATE) %>% 
+      summarise(NUM = n())
+  })
+
   ########################### MAP #######################################
   
-  # Create Base Map
-  
+  # # Create Base Map
+  # 
   output$mapPlot <- renderLeaflet({
-    leaflet()%>%
+    leaflet(state_serviceSubset())%>%
       addTiles()%>%
-      addProviderTiles("Stamen.Toner", group = "Toner")  # IF STATEMENT NEEDED TO CHANGE BASE MAP?? 
+      addProviderTiles("Stamen.Toner", group = "Toner")
+  #   leaflet(state_serviceSubset())%>%
+  #     addTiles()%>%
+  #     addProviderTiles("Stamen.Toner", group = "Toner")%>%
+  #     addCircleMarkers(lat = state_serviceSubset()$LATITUDE,
+  #                      lng = state_serviceSubset()$LONGITUDE, group = state_serviceSubset()$NAME, 
+  #                      stroke = F,color = ~pal(NAME))%>%
+  #     addLayersControl(
+  #       overlayGroups = c(levels(state_serviceSubset()$NAME)),
+  #       options = layersControlOptions(collapsed = FALSE))%>%
+  #     addLegend("bottomright", pal = pal, values = ~NAME,
+  #               title = "Type of UPS Location")
       })
-      
-  #Add Circle Layers 
-  observe({
-    pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset()$NAME)))
-    
-    leafletProxy("mapPLot", data = state_serviceSubset())%>%
-      addCircleMarkers(lat = state_serviceSubset()$LATITUDE, lng = state_serviceSubset()$LONGITUDE, 
-                       group = state_serviceSubset()$NAME, stroke = F, color = ~pal(NAME))%>%
-      addLayersControl(
-        overlayGroups = c(levels(state_serviceSubset()$NAME)),
-        options = layersControlOptions(collapsed = FALSE))%>%
-        addLegend("bottomright", pal = pal, values = ~NAME,
-                  title = "Type of UPS Location")
-  })
-# My beautiful working map without Leaflet proxy
-  # leaflet(state_serviceSubset())%>%
+      # 
+  #Add Circle Layers ----------------------------------------------------------
+  # observe({
+  # 
+  #   if(input$circles){
+  # 
+  #   pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset()$NAME)))
+  # 
+  # 
+  #   leafletProxy("mapPLot", data = state_serviceSubset())%>%
+  #     clearGroup("markers")%>%
+  # 
+  #     addCircleMarkers(lat = state_serviceSubset()$LATITUDE, lng = state_serviceSubset()$LONGITUDE,
+  #                      group = state_serviceSubset()$NAME, stroke = F, color = ~pal(NAME))%>%
+  #     addLayersControl(
+  #       overlayGroups = c(levels(state_serviceSubset()$NAME)),
+  #       options = layersControlOptions(collapsed = FALSE))%>%
+  #       addLegend("bottomright", pal = pal, values = ~NAME,
+  #                 title = "Type of UPS Location", group = "legend")
+  #   } else {
+  #   leafletProxy("mapPlot") %>%
+  #     clearGroup("markers")%>%
+  #      removeControl("legend")
+  # }
+  # })
+  
+  # # Add Polygons -----------------------------------------------------------------
+  # 
+  # #Source https://cran.r-project.org/web/packages/GISTools/GISTools.pdf
+  # 
+
+
+
+  #  # MAP: NEED PROXY
+  # output$mapPlot <- renderLeaflet({
+  # 
+  # 
+  # # counts <- poly.counts(pts = state_serviceSubset(), polys =  state_data_new())
+  # # 
+  # # Create palette
+  # pal_count <-colorNumeric(palette = "Blues", domain =counts())
+  # 
+  # 
+  # leaflet(state_data_new())%>%
   #   addTiles()%>%
   #   addProviderTiles("Stamen.Toner", group = "Toner")%>%
-  #   addCircleMarkers(lat = state_serviceSubset()$LATITUDE, lng = state_serviceSubset()$LONGITUDE, group = state_serviceSubset()$NAME, stroke = F, color = ~pal(NAME))%>%
-  #   addLayersControl(
-  #     overlayGroups = c(levels(state_serviceSubset()$NAME)),
-  #     options = layersControlOptions(collapsed = FALSE))%>%
-  #   addLegend("bottomright", pal = pal, values = ~NAME,
-  #             title = "Type of UPS Location")
-  
-
+  #   addPolygons(color = ~pal_count(counts()),
+  #               weight = 2,
+  #               opacity = 1,
+  #               fillOpacity = 1,
+  #               group = "UPS locations",
+  #               highlightOptions = highlightOptions(color = "black", bringToFront = TRUE))
+  # })
   
   ########################### DATA TABLE ################################ 
   
