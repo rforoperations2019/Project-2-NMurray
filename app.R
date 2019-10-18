@@ -14,6 +14,7 @@ library(tigris)
 library(RColorBrewer)
 library(plotly)
 library(GISTools)
+library(dplyr)
 
 ############ LOAD DATA ######################
 #Source: https://hifld-geoplatform.opendata.arcgis.com/search?groupIds=c779ef9b8468494fa2dbf7f573d61547
@@ -28,7 +29,7 @@ state_abbrev <- read.csv("states.csv")
 colnames(state_new@data)[colnames(state_new@data)=="STATE"] <- "FIPS"
 colnames(state_new@data)[colnames(state_new@data)== "NAME"] <- "STATE_NAME"
 
-# Add State Abbrevs to spatial file 
+# Add State Abbrevs to spatial file (File contains Letter abbreviations STATE)
 state_new <- merge(state_new, state_abbrev, by = "STATE_NAME" )
 
 state_list <- sort(jsonlite::fromJSON("https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/UPS_Facilities/FeatureServer/0/query?where=1%3D1&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=STATE&returnGeometry=false&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=true&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson&token=")$features$attributes$STATE)
@@ -125,33 +126,37 @@ awesome_reactive_data <-  reactive({
     data_subset
 
   })
+  ################# This ideally should work to make the polygon layer reactive. Sadly not the case#########
   
   # Filter State Shape File By State-------------------------------
-  state_shape <- reactive({
-    req(input$stateSelect)
-    data_subset <- filter(state_new, STATE %in% input$stateSelect)
-    return(data_subset)
-  })
   
-  # strip census_code in api call in order to merge state data on fips code to API data-------------
-  state_serviceSubset_new <- reactive({
-    
-    new_df <- cbind(state_serviceSubset(), FIPS = substr(ups$CENSUS_CODE, 1, 2))
-    return(new_df)
-  })
+  # state_shape <- reactive({
+  #   req(input$stateSelect)
+  #   data_subset <- filter(state_new, STATE %in% input$stateSelect)
+  #   return(data_subset)
+  # })
   
-  state_data_new <- reactive({
-    #Merge shapefile with my dataset
-    state_merge <- merge(state_new, state_serviceSubset_new(), by = c("FIPS"), sort = FALSE)
-    return(state_merge)
-  })
+  # # strip census_code in api call in order to merge state data on FIPS code to API data-------------
   
-  # Count points in a state
-  counts_by_state <- reactive({
-    state_serviceSubset_new() %>% 
-      group_by(STATE) %>% 
-      summarise(NUM = n())
-  })
+  # state_serviceSubset_new <- reactive({
+  #   new_df <- cbind(state_serviceSubset(), FIPS = substr(state_serviceSubset()$CENSUS_CODE, 1, 2))
+  #   return(new_df)
+  # })
+  
+  # state_data_new <- reactive({
+  #   #Merge shapefile with my dataset on FIPS code
+  #   state_merge <- merge(state_new, state_serviceSubset(), by = c("STATE"), sort = FALSE)
+  #   return(state_merge)
+  # })
+  
+  # # # Count points in a state
+  
+  # counts_by_state <- reactive({
+  #   
+  #   state_serviceSubset() %>%
+  #     group_by(STATE) %>%
+  #     summarise(NUM = n())
+  # })
 
   ########################### MAP #######################################
   
@@ -168,41 +173,55 @@ awesome_reactive_data <-  reactive({
 
     if(input$mapType == "circles"){
 
-    pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset_new()$NAME)))
+    pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset()$NAME)))
+  
+    # this should create a palette for the Polygon. Again, doesn't work :( 
+
+   # Create palette
+    # counts <- poly.counts(pts = state_serviceSubset(), polys =  state_new)
+    # pal_count <-colorNumeric(palette = "Blues", domain = counts)
     
-    # counts <- poly.counts(pts = state_serviceSubset_new(), polys =  state_new)
+    
+    # counts_by_state <-
+    #   state_serviceSubset() %>%
+    #     group_by(STATE) %>%
+    #     # count()
+    #     summarise(NUM = n())
     # 
-    # # # Create palette
-    # pal_count <-colorNumeric(palette = "Blues", domain =counts())
+    # pal_count <-colorNumeric(palette = "Blues", domain = counts_by_state)
 
-    
-    # pal_count <-colorNumeric(palette = "Blues", domain = counts_by_state())
-
-    leafletProxy("mapPlot", data = state_serviceSubset_new()) %>%
+    leafletProxy("mapPlot", data = state_serviceSubset()) %>%
       clearShapes() %>%
       clearMarkers() %>%
       # removeMarker("markers") %>%
       clearControls() %>%
       addCircleMarkers(
-                       lat = state_serviceSubset_new()$LATITUDE, 
-                       lng = state_serviceSubset_new()$LONGITUDE, 
+                       lat = state_serviceSubset()$LATITUDE, 
+                       lng = state_serviceSubset()$LONGITUDE, 
                        stroke = F, 
                        color = ~pal(NAME), 
                        group = "markers")%>%
         addLegend("bottomright", pal = pal, values = ~NAME,
                   title = "Type of UPS Location", layerId = "legend")%>%
-      fitBounds(~min(state_serviceSubset_new()$LONGITUDE), ~min(state_serviceSubset_new()$LATITUDE),
-                ~max(state_serviceSubset_new()$LONGITUDE), ~max(state_serviceSubset_new()$LATITUDE))
+      fitBounds(~min(state_serviceSubset()$LONGITUDE), ~min(state_serviceSubset()$LATITUDE),
+                ~max(state_serviceSubset()$LONGITUDE), ~max(state_serviceSubset()$LATITUDE))
     }
-    else(leafletProxy("mapPlot", data = state_data_new()) %>%
+    else(leafletProxy("mapPlot", data = state_new) %>%
            
          #   # removeMarker("markers") %>%
            clearMarkers() %>%
            clearShapes() %>%
            clearControls() %>%
-           addPolygons()
+           addPolygons(
+             # color = ~pal_count(counts_by_state),
+                         weight = 2,
+                         opacity = 1,
+                         fillOpacity = 1,
+                         group = "UPS locations",
+                         highlightOptions = highlightOptions(color = "black", bringToFront = TRUE))
     )
     }) 
+  
   # # Add Polygons-------------------------------------------------------------
   #   observe({
   #     if(input$mapType == "polygons"){
