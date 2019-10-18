@@ -215,61 +215,13 @@ awesome_reactive_data <-  reactive({
            addPolygons(
              # color = ~pal_count(counts_by_state),
                          weight = 2,
-                         opacity = 1,
+                         opacity = .5,
                          fillOpacity = 1,
                          group = "UPS locations",
                          highlightOptions = highlightOptions(color = "black", bringToFront = TRUE))
     )
     }) 
-  
-  # # Add Polygons-------------------------------------------------------------
-  #   observe({
-  #     if(input$mapType == "polygons"){
-  #   # Create palette
-  #   # pal_count <-colorNumeric(palette = "Blues", domain =counts())
-  #     
-  #   leafletProxy("mapPlot") %>%
-  #       clearShapes()%>%
-  #       removeControl()
-  #       #   addPolygons(color = ~pal_count(counts_by_state()),
-  #       #               weight = 2,
-  #       #               opacity = 1,
-  #       #               fillOpacity = 1,
-  #       #               group = "UPS locations",
-  #       #               highlightOptions = highlightOptions(color = "black", bringToFront = TRUE))
-  #     }
-  #     else(leafletProxy("mapPlot")%>%
-  #                 clearShapes()%>%
-  #                 removeControl("legend"))
-  #     })
 
-  # # Add Polygons -----------------------------------------------------------------
-  #
-  # #Source https://cran.r-project.org/web/packages/GISTools/GISTools.pdf
-  #
-
-
-
-  #  # MAP: NEED PROXY
-  # output$mapPlot <- renderLeaflet({
-  # 
-  # 
-  # # counts <- poly.counts(pts = state_serviceSubset(), polys =  state_data_new())
-  # # 
-  # # Create palette
-  # pal_count <-colorNumeric(palette = "Blues", domain =counts())
-  # 
-  # 
-  # leaflet(state_data_new())%>%
-  #   addTiles()%>%
-  #   addProviderTiles("Stamen.Toner", group = "Toner")%>%
-  #   addPolygons(color = ~pal_count(counts()),
-  #               weight = 2,
-  #               opacity = 1,
-  #               fillOpacity = 1,
-  #               group = "UPS locations",
-  #               highlightOptions = highlightOptions(color = "black", bringToFront = TRUE))
-  # })
   
   ########################### DATA TABLE ################################ 
   
@@ -310,7 +262,7 @@ awesome_reactive_data <-  reactive({
   ############# Download Data #######################
   
   # #Output for download-----------------------------------------
-
+  
   output$downloadData <- downloadHandler(
     filename = function() {
       paste("UPS location data", Sys.Date(), ".csv", sep="")
