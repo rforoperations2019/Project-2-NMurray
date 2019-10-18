@@ -5,7 +5,6 @@ library(jsonlite) # fromJSON
 library(utils) # URLencode functions
 library(rgdal) # readOGR
 library(shiny)
-library(shinythemes)
 library(leaflet)
 library(leaflet.extras)
 library(shinyjs)
@@ -71,7 +70,7 @@ sidebar <- dashboardSidebar(
         # Select Input: Change Map from Circles to polygon
         radioButtons(inputId = "mapType",
                      label = "Select Map Input:",
-                     choices = c("circles", "polygon" ),
+                     choices = c("circles" = "circles", "polygons" = "polygons" ),
                      selected = c("circles")),
         
         # Download Button for Data ------------------------------- 
@@ -79,7 +78,7 @@ sidebar <- dashboardSidebar(
         downloadButton("downloadData","Download Selected Data"))
         
 
-body <- dashboardBody(theme = shinytheme("flatly"),
+body <- dashboardBody(
               tabItems(
               # Data Table Page -----------------------------------
                   tabItem("table", width =12, height = 500,
@@ -144,7 +143,7 @@ awesome_reactive_data <-  reactive({
   })
   
   # Count points in a state
-  by_state <- reactive({
+  counts_by_state <- reactive({
     state_serviceSubset_new() %>% 
       group_by(STATE) %>% 
       summarise(NUM = n())
@@ -157,49 +156,50 @@ awesome_reactive_data <-  reactive({
   output$mapPlot <- renderLeaflet({
     leaflet(state_serviceSubset())%>%
       addTiles()%>%
-      addProviderTiles("Stamen.Toner", group = "Toner")
-  #   leaflet(state_serviceSubset())%>%
-  #     addTiles()%>%
-  #     addProviderTiles("Stamen.Toner", group = "Toner")%>%
-  #     addCircleMarkers(lat = state_serviceSubset()$LATITUDE,
-  #                      lng = state_serviceSubset()$LONGITUDE, group = state_serviceSubset()$NAME, 
-  #                      stroke = F,color = ~pal(NAME))%>%
-  #     addLayersControl(
-  #       overlayGroups = c(levels(state_serviceSubset()$NAME)),
-  #       options = layersControlOptions(collapsed = FALSE))%>%
-  #     addLegend("bottomright", pal = pal, values = ~NAME,
-  #               title = "Type of UPS Location")
+      addProviderTiles("Stamen.Toner", group = "Toner")%>%
+      fitBounds(~min(state_serviceSubset()$LONGITUDE), ~min(state_serviceSubset()$LATITUDE),
+                ~max(state_serviceSubset()$LONGITUDE), ~max(state_serviceSubset()$LATITUDE))
       })
       # 
   #Add Circle Layers ----------------------------------------------------------
-  # observe({
-  # 
-  #   if(input$circles){
-  # 
-  #   pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset()$NAME)))
-  # 
-  # 
-  #   leafletProxy("mapPLot", data = state_serviceSubset())%>%
-  #     clearGroup("markers")%>%
-  # 
-  #     addCircleMarkers(lat = state_serviceSubset()$LATITUDE, lng = state_serviceSubset()$LONGITUDE,
-  #                      group = state_serviceSubset()$NAME, stroke = F, color = ~pal(NAME))%>%
-  #     addLayersControl(
-  #       overlayGroups = c(levels(state_serviceSubset()$NAME)),
-  #       options = layersControlOptions(collapsed = FALSE))%>%
-  #       addLegend("bottomright", pal = pal, values = ~NAME,
-  #                 title = "Type of UPS Location", group = "legend")
-  #   } else {
-  #   leafletProxy("mapPlot") %>%
-  #     clearGroup("markers")%>%
-  #      removeControl("legend")
-  # }
-  # })
-  
+  observe({
+
+    if(input$mapType == "circles"){
+
+    pal <- colorFactor(palette = "Paired", domain = c(levels(state_serviceSubset()$NAME)))
+
+    leafletProxy("mapPlot", data = state_serviceSubset())%>%
+      clearShapes()%>%
+      removeControl("legend") %>%
+      addCircleMarkers(lat = state_serviceSubset()$LATITUDE, 
+                       lng = state_serviceSubset()$LONGITUDE, 
+                       stroke = F, 
+                       color = ~pal(NAME))%>%
+        addLegend("bottomright", pal = pal, values = ~NAME,
+                  title = "Type of UPS Location", group = "legend")
+    }}) 
+  # Add Polygons-------------------------------------------------------------
+    observe({
+      if(input$mapType == "polygons"){
+    # Create palette
+    pal_count <-colorNumeric(palette = "Blues", domain =counts())
+      
+    leafletProxy("mapPlot", data = state_data_new()) %>%
+        clearShapes()%>%
+        removeControl("legend") %>%
+          addPolygons(color = ~pal_count(counts_by_state()),
+                      weight = 2,
+                      opacity = 1,
+                      fillOpacity = 1,
+                      group = "UPS locations",
+                      highlightOptions = highlightOptions(color = "black", bringToFront = TRUE))
+      }
+  })
+
   # # Add Polygons -----------------------------------------------------------------
-  # 
+  #
   # #Source https://cran.r-project.org/web/packages/GISTools/GISTools.pdf
-  # 
+  #
 
 
 
